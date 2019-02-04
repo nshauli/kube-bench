@@ -258,7 +258,7 @@ groups:
         auditFilePath: "/var/log/audit-ocp.log"
         enabled: true
         maximumFileRetentionDays: 10
-        maximumFileSizeMegabytes: 10
+        maximumFileSizeMegabytes: 100
         maximumRetainedFiles: 10
 
       Make the same changes in the inventory/ansible variables so the changes are not
@@ -289,7 +289,7 @@ groups:
         auditFilePath: "/var/log/audit-ocp.log"
         enabled: true
         maximumFileRetentionDays: 10
-        maximumFileSizeMegabytes: 10
+        maximumFileSizeMegabytes: 100
         maximumRetainedFiles: 10
 
       Make the same changes in the inventory/ansible variables so the changes are not
@@ -302,34 +302,148 @@ groups:
     tests:
       bin_op: and
       test_items:
-      - flag: "auditConfig"
+      - flag: "enabled: true"
         compare:
           op: has
-          value: "auditConfig"
+          value: "enabled: true"
         set: true
-      - flag: "maximumFileRetentionDays"
+      - flag: "maximumRetainedFile"
         compare:
           op: has
-          value: "maximumFileRetentionDays"
+          value: "maximumRetainedFile"
         set: true
     remediation: |
-      Edit the Openshift master config file $apiserverconf,
-      update the maximumFileRetentionDays entry and restart the API server.
+      Edit the Openshift master config file $apiserverconf, update the maximumRetainedFiles entry,
+      set enabled to true and restart the API server.
 
       auditConfig:
         auditFilePath: "/var/log/audit-ocp.log"
         enabled: true
         maximumFileRetentionDays: 10
-        maximumFileSizeMegabytes: 10
+        maximumFileSizeMegabytes: 100
         maximumRetainedFiles: 10
 
       Make the same changes in the inventory/ansible variables so the changes are not
       lost when an upgrade occurs.
     scored: true
 
+  - id: 1.1.18
+    text: "Ensure that the --audit-log-maxsize argument is set to 100 or as appropriate (Scored)"
+    audit: "grep -A5 auditConfig $apiserverconf"
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "enabled: true"
+        compare:
+          op: has
+          value: "enabled: true"
+        set: true
+      - flag: "maximumFileSizeMegabytes"
+        compare:
+          op: has
+          value: "maximumFileSizeMegabytes"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf, update the maximumFileSizeMegabytes entry,
+      set enabled to true and restart the API server.
+
+      auditConfig:
+        auditFilePath: "/var/log/audit-ocp.log"
+        enabled: true
+        maximumFileRetentionDays: 10
+        maximumFileSizeMegabytes: 100
+        maximumRetainedFiles: 10
+
+      Make the same changes in the inventory/ansible variables so the changes are not
+      lost when an upgrade occurs.
+    scored: true
+
+  - id: 1.1.19
+    text: "Ensure that the --authorization-mode argument is not set to AlwaysAllow (Scored)"
+    audit: "grep -A1 authorization-mode $apiserverconf"
+    tests:
+      test_items:
+      - flag: "authorization-mode"
+        set: false
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and remove the authorization-mode
+      entry.
+
+      kubernetesMasterConfig:
+        apiServerArguments:
+           authorization-mode:
+             - AllowAll
+    scored: true
+
+  - id: 1.1.20
+    text: "Ensure that the --token-auth-file parameter is not set (Scored)"
+    audit: "grep token-auth-file /etc/origin/master/master-config.yaml"
+    tests:
+      test_items:
+      - flag: "token-auth-file"
+        set: false
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and remove the token-auth-file
+      entry under apiserverArguments section.
+
+      kubernetesMasterConfig:
+        apiServerArguments:
+           token-auth-file:
+             - /path/to/file
+    scored: true
+
+  - id: 1.1.21
+    text: "Ensure that the --kubelet-certificate-authority argument is set as appropriate (Scored)"
+    audit: "grep -A1 kubelet-certificate-authority $apiserverconf"
+    tests:
+      test_items:
+      - flag: "kubelet-certificate-authority"
+        set: false
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and remove the following
+      configuration under apiserverArguments section.
+
+      kubernetesMasterConfig:
+        apiServerArguments:
+           kubelet-certificat-authority:
+             - /path/to/ca
+    scored: true
+
+  - id: 1.1.22
+    text: "Ensure that the --kubelet-client-certificate and --kubelet-client-key arguments are set as appropriate (Scored)"
+    audit: "grep -A4 kubeletClientInfo $apiserverconf"
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "kubeletClientInfo"
+        compare:
+          op: has
+          value: "kubeletClientInfo"
+        set: true
+      - flag: "keyFile: master.kubelet-client.key"
+        compare:
+          op: has
+          value: "keyFile: master.kubelet-client.key"
+        set: true
+      - flag: "certFile: master.kubelet-client.crt"
+        compare:
+          op: has
+          value: "certFile: master.kubelet-client.crt"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and add the following
+      configuration under kubeletClientInfo
+
+      kubeletClientInfo:
+        ca: ca-bundle.crt
+        certFile: master.kubelet-client.crt
+        keyFile: master.kubelet-client.key
+        port: 10250
+    scored: true
+
   - id: 1.1.23
-    text: "Ensure that the --service-account-lookup argument is set to true (Scored)"
-    type: "skip"
+    text: "Ensure that the --service-account-lookup argument is set to true"
+    type: skip
     scored: true
 
   - id: 1.1.24
@@ -337,8 +451,272 @@ groups:
     type: "skip"
     scored: true
 
+  - id: 1.1.25
+    text: "Ensure that the --service-account-key-file argument is set as appropriate (Scored)"
+    audit: "grep -A9 serviceAccountConfig $apiserverconf"
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "privateKeyFile: serviceaccounts.private.key"
+        compare:
+          op: has
+          value: "privateKeyFile: serviceaccounts.private.key"
+        set: true
+      - flag: "serviceaccounts.public.key"
+        compare:
+          op: has
+          value: "serviceaccounts.public.key"
+        set: true
+    remediation: |
+      OpenShift API server does not use the service-account-key-file argument. 
+      Even if value is set in master-config.yaml, it will not be used to verify 
+      service account tokens, as it is in upstream Kubernetes. The ServiceAccount 
+      token authenticator is configured with serviceAccountConfig.publicKeyFiles in 
+      the master-config.yaml. OpenShift does not reuse the apiserver TLS key.
+
+      Edit the Openshift master config file $apiserverconf and set the privateKeyFile 
+      and publicKeyFile configuration under serviceAccountConfig.
+
+        serviceAccountConfig:
+          limitSecretReferences: false
+          managedNames:
+            - default
+            - builder
+            - deployer
+          masterCA: ca-bundle.crt
+          privateKeyFile: serviceaccounts.private.key
+          publicKeyFiles:
+            - serviceaccounts.public.key
+
+      Verify that privateKeyFile and publicKeyFile exist and set.
+    scored: true
+
+  - id: 1.1.26
+    text: "Ensure that the --etcd-certfile and --etcd-keyfile arguments are set as appropriate (Scored)"
+    audit: "grep -A3 etcdClientInfo $apiserverconf"
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "certFile: master.etcd-client.crt"
+        compare:
+          op: has
+          value: "certFile: master.etcd-client.crt"
+        set: true
+      - flag: "keyFile: master.etcd-client.key"
+        compare:
+          op: has
+          value: "keyFile: master.etcd-client.key"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and set keyFile and certFile 
+      under etcdClientInfo like below.
+      
+        etcdClientInfo:
+          ca: master.etcd-ca.crt
+          certFile: master.etcd-client.crt
+          keyFile: master.etcd-client.key
+    scored: true
+
+  - id: 1.1.27
+    text: "Ensure that the admission control plugin ServiceAccount is set (Scored)"
+    audit: "grep -A4 ServiceAccount $apiserverconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "ServiceAccount"
+        set: false
+      - flag: "disabled: false"
+        compare:
+          op: has
+          value: "disabled: false"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and enable ServiceAccount
+      admission control policy.
+      
+        ServiceAccount: 
+          configuration:
+            kind: DefaultAdmissionConfig
+            apiVersion: v1
+            disable: false
+    scored: true
+
+  - id: 1.1.28
+    text: "Ensure that the --tls-cert-file and --tls-private-key-file arguments are set as appropriate (Scored)"
+    audit: "grep -A7 servingInfo $apiserverconf"
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "certFile: master.server.crt"
+        compare:
+          op: has
+          value: "certFile: master.server.crt"
+        set: true
+      - flag: "keyFile: master.server.key"
+        compare:
+          op: has
+          value: "keyFile: master.server.key"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and set keyFile and certFile under servingInfo.
+
+        servingInfo:
+          bindAddress: 0.0.0.0:8443
+          bindNetwork: tcp4
+          certFile: master.server.crt
+          clientCA: ca.crt
+          keyFile: master.server.key
+          maxRequestsInFlight: 500
+          requestTimeoutSeconds: 3600
+    scored: true
+
+  - id: 1.1.29
+    text: "Ensure that the --client-ca-file argument is set as appropriate (Scored)"
+    audit: "grep -A7 servingInfo $apiserverconf"
+    tests:
+      test_items:
+      - flag: "clientCA: ca.crt"
+        compare:
+          op: has
+          value: "clientCA: ca.crt"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and set clientCA under servingInfo.
+
+        servingInfo:
+          bindAddress: 0.0.0.0:8443
+          bindNetwork: tcp4
+          certFile: master.server.crt
+          clientCA: ca.crt
+          keyFile: master.server.key
+          maxRequestsInFlight: 500
+          requestTimeoutSeconds: 3600
+    scored: true
+
+  # 1.1.30 in the Aquasec shared doc does not match CIS k8s v1.3.0
+  - id: 1.1.30
+    text: "Ensure that the --etcd-cafile argument is set as appropriate (Scored)"
+    audit: "grep -A3 etcdClientInfo $apiserverconf"
+    tests:
+      test_items:
+      - flag: "ca: master.etcd-ca.crt"
+        compare:
+          op: has
+          value: "ca: master.etcd-ca.crt"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and set ca under etcdClientInfo.
+
+        etcdClientInfo:
+          ca: master.etcd-ca.crt
+          certFile: master.etcd-client.crt
+          keyFile: master.etcd-client.key
+    scored: true
+
   - id: 1.1.31
     text: "Ensure that the --etcd-cafile argument is set as appropriate (Scored)"
     type: "skip"
     scored: true
 
+  - id: 1.1.32
+    text: "Ensure that the --authorization-mode argument is set to Node (Scored)"
+    audit: "grep -A4 NodeRestriction $apiserverconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "NodeRestriction"
+        set: false
+      - flag: "disable: false"
+        compare:
+          op: has
+          value: "disable: false"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and enable NodeRestriction ca under etcdClientInfo.
+
+        NodeRestriction:
+          configuration:
+            kind: DefaultAdmissionConfig
+            apiVersion: v1
+            disable: false
+    scored: true
+
+  # 1.1.33 in Aquasec shared doc is 1.1.34 in CIS k8s v1.3.0
+  - id: 1.1.33
+    text: "Ensure that the --experimental-encryption-provider-config argument is set as appropriate (Scored)"
+    audit: "grep -A1 experimental-encryption-provider-config $apiserverconf"
+    tests:
+      test_items:
+      - flag: "experimental-encryption-provider-config:"
+        compare:
+          op: has
+          value: "experimental-encryption-provider-config:"
+        set: true
+    remediation: |
+      Follow the instructions in the documentation to configure encryption. 
+      https://docs.openshift.com/container-platform/3.10/admin_guide/encrypting_data.html
+    scored: true
+
+  - id: 1.1.34
+    text: "Ensure that the encryption provider is set to aescbc (Scored)"
+    audit: "grep -A1 'experimental-encryption-provider-config' $apiserverconf | cut -d':' -f2 | tr -d '\n -' | xargs grep -A1 providers"
+    tests:
+      test_items:
+      - flag: "aescbc"
+        compare:
+          op: has
+          value: "aescbc"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and set aescbc as the first provider in encryption provider config.
+      See https://docs.openshift.com/container-platform/3.10/admin_guide/encrypting_data.html.
+    scored: true
+
+  - id: 1.1.35
+    text: "Ensure that the admission control policy is set to EventRateLimit (Scored)"
+    audit: "grep -A4 EventRateLimit $apiserverconf"
+    tests:
+      test_items:
+      - flag: "disabled: false"
+        compare:
+          op: has
+          value: "disabled: false"
+        set: true
+    remediation: |
+      Follow the documentation to enable the EventRateLimit plugin.
+      https://docs.openshift.com/container-platform/3.10/architecture/additional_concepts/admission_controllers.html#admission-controllers-general-admission-rules 
+    scored: true
+
+  - id: 1.1.36
+    text: "Ensure that the AdvancedAuditing argument is not set to false (Scored)"
+    audit: "grep AdvancedAuditing $apiserverconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "AdvancedAuditing"
+        compare:
+          op: eq
+          value: "true"
+        set: true
+      - flag: "AdvancedAuditing"
+        set: false
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and enable AdvancedAuditing,
+
+      kubernetesMasterConfig:
+        apiServerArguments:
+          feature-gates:
+            - AdvancedAuditing=true
+    scored: true
+
+  # Review 1.1.37 in Aquasec shared doc, the tests are net zero.
+  - id: 1.1.37
+    text: "Ensure that the --request-timeout argument is set as appropriate (Scored)"
+    audit: "grep request-timeout $apiserverconf"
+    type: manual
+    remediation: |
+      change the request-timeout value in the  /etc/origin/master/master-config.yaml
+    scored: true
+
+  # 1.1.38 is missing in Aquasec shared doc but exists in CIS k8s v1.3.0
+  
