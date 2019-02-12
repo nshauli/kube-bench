@@ -593,7 +593,6 @@ groups:
           requestTimeoutSeconds: 3600
     scored: true
 
-  # 1.1.30 in the Aquasec shared doc does not match CIS k8s v1.3.0
   - id: 1.1.30
     text: "Ensure that the --etcd-cafile argument is set as appropriate (Scored)"
     audit: "grep -A3 etcdClientInfo $apiserverconf"
@@ -641,7 +640,6 @@ groups:
             disable: false
     scored: true
 
-  # 1.1.33 in Aquasec shared doc is 1.1.34 in CIS k8s v1.3.0
   - id: 1.1.33
     text: "Ensure that the --experimental-encryption-provider-config argument is set as appropriate (Scored)"
     audit: "grep -A1 experimental-encryption-provider-config $apiserverconf"
@@ -718,5 +716,823 @@ groups:
       change the request-timeout value in the  /etc/origin/master/master-config.yaml
     scored: true
 
-  # 1.1.38 is missing in Aquasec shared doc but exists in CIS k8s v1.3.0
-  
+
+- id: 1.2
+  text: "Scheduler"
+  checks:
+  - id: 1.2.1
+    text: "Ensure that the --profiling argument is set to false (Scored)"
+    type: "skip"
+    scored: true
+
+
+- id: 1.3
+  text: "Controller Manager"
+  checks:
+  - id: 1.3.1
+    text: "Ensure that the --terminated-pod-gc-threshold argument is set as appropriate (Scored)"
+    audit: "grep terminated-pod-gc-threshold -A1 $apiserverconf"
+    tests:
+      test_items:
+      - flag: "true"
+        compare:
+          op: has
+          value: "true"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf  and enable terminated-pod-gc-threshold.
+
+        kubernetesMasterConfig:
+          controllerArguments:
+             terminated-pod-gc-threshold:
+             - true
+
+      Enabling the "terminated-pod-gc-threshold" settings is optional.
+    scored: true
+
+  - id: 1.3.2
+    text: "Ensure that the --profiling argument is set to false (Scored)"
+    type: "skip"
+    scored: true
+
+  - id: 1.3.3
+    text: "Ensure that the --use-service-account-credentials argument is set to true (Scored)"
+    audit: "grep -A2 use-service-account-credentials $apiserverconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "use-service-account-credentials"
+        set: false
+      - flag: "true"
+        compare:
+          op: has
+          value: "true"
+        set: true
+    remediation: |
+      Edit the Openshift master config file $apiserverconf and set use-service-account-credentials
+      to true under controllerArguments section.
+
+      kubernetesMasterConfig:
+        controllerArguments:
+           use-service-account-credentials:
+             - true
+    scored: true
+
+  # Review 1.3.4
+  - id: 1.3.4
+    text: "Ensure that the --service-account-private-key-file argument is set as appropriate (Scored)"
+    audit: "grep -A2 service-account-private-key-file $apiserverconf"
+    tests:
+      test_items:
+        - flag: "service-account-private-key-file"
+          set: false
+    remediation:
+      Edit the Openshift master config file $apiserverconf and remove service-account-private-key-file
+    scored: true
+
+  # Review 1.3.5
+  - id: 1.3.5
+    text: "Ensure that the --root-ca-file argument is set as appropriate (Scored)"
+    audit: "grep root-ca-file $apiserverconf"
+    tests:
+      test_items:
+        - flag: "root-ca-file"
+          compare:
+            op: eq
+            value: "/etc/origin/master/ca-bundle.crt"
+          set: true
+    remediation:
+      Reset to OpenShift defaults OpenShift starts kube-controller-manager with
+      root-ca-file=/etc/origin/master/ca-bundle.crt by default.  OpenShift Advanced
+      Installation creates this certificate authority and configuration without any
+      configuration required.
+
+      https://docs.openshift.com/container-platform/3.10/admin_guide/service_accounts.html"
+    scored: true
+
+  - id: 1.3.6
+    text: "Apply Security Context to Your Pods and Containers (Not Scored)"
+    type: "skip"
+    scored: false
+
+  - id: 1.3.7
+    text: "Ensure that the RotateKubeletServerCertificate argument is set to true (Scored)"
+    audit: "grep -B3 RotateKubeletServerCertificate=true $apiserverconf"
+    tests:
+      test_items:
+        - flag: "RotateKubeletServerCertificate"
+          compare:
+            op: eq
+            value: "true"
+          set: true
+    remediation:
+      If you decide not to enable the RotateKubeletServerCertificate feature,
+      be sure to use the Ansible playbooks provided with the OpenShift installer to
+      automate re-deploying certificates.
+    scored: true
+
+
+- id: 1.4
+  text: "Configuration Files"
+  checks:
+  - id: 1.4.1
+    text: "Ensure that the API server pod specification file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $apiserverpodconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $apiserverpodconf
+    scored: true
+
+  - id: 1.4.2
+    text: "Ensure that the API server pod specification file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $apiserverpodconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $apiserverpodconf
+    scored: true
+
+  - id: 1.4.3
+    text: "Ensure that the controller manager pod specification file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $controllerpodconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chmod 644 $controllermanagerpodconf
+    scored: true
+
+  - id: 1.4.4
+    text: "Ensure that the controller manager pod specification file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $controllermanagerpodconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $controllermanagerpodconf
+    scored: true
+
+  - id: 1.4.5
+    text: "Ensure that the scheduler pod specification file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $schedulerpodconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $schedulerpodconf
+    scored: true
+
+  - id: 1.4.6
+    text: "Ensure that the scheduler pod specification file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $schedulerpodconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $schedulerpodconf
+    scored: true
+
+  - id: 1.4.7
+    text: "Ensure that the etcd pod specification file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $etcdpodconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $etcdpodconf
+    scored: true
+
+  - id: 1.4.8
+    text: "Ensure that the etcd pod specification file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $etcdpodconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $etcdpodconf
+    scored: true
+
+  - id: 1.4.9
+    text: "Ensure that the Container Network Interface file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $mastercnifiles"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $mastercnifiles
+    scored: true
+
+  - id: 1.4.10
+    text: "Ensure that the Container Network Interface file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $mastercnifiles"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $mastercnifiles
+    scored: true
+
+  - id: 1.4.11
+    text: "Ensure that the etcd data directory permissions are set to 700 or more restrictive(Scored)"
+    audit: "stat -c %a $etcddatdir"
+    tests:
+      test_items:
+      - flag: "700"
+        compare:
+          op: eq
+          value: "700"
+        set: true
+    remediation: |
+      On the etcd server node, get the etcd data directory, passed as an argument --data-dir ,
+      from the below command:
+      ps -ef | grep $etcdbin
+      Run the below command (based on the etcd data directory found above). For example,
+      chmod 700 /var/lib/etcd
+    scored: true
+
+  - id: 1.4.12
+    text: "Ensure that the etcd data directory ownership is set to etcd:etcd (Scored)"
+    audit: "stat -c %u $etcddatadir"
+    tests:
+      test_items:
+      - flag: "etcd:etcd"
+        compare:
+          op: eq
+          value: "etcd:etcd"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown etcd:etcd $etcddatadir
+    scored: true
+
+  - id: 1.4.13
+    text: "Ensure that the admin.conf file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $masteradminconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $masteradminconf
+    scored: true
+
+  - id: 1.4.14
+    text: "Ensure that the admin.conf file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $masteradminconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $masteradminconf
+    scored: true
+
+  - id: 1.4.15
+    text: "Ensure that the scheduler.conf file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $schedulerkubeconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $schedulerkubeconf
+    scored: true
+
+  - id: 1.4.16
+    text: "Ensure that the scheduler.conf file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $schedulerkubeconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $schedulerkubeconf
+    scored: true
+
+  - id: 1.4.17
+    text: "Ensure that the controller-manager.conf file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $controllermanagerkubeconf"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "644"
+        compare:
+          op: eq
+          value: "644"
+        set: true
+      - flag: "640"
+        compare:
+          op: eq
+          value: "640"
+        set: true
+      - flag: "600"
+        compare:
+          op: eq
+          value: "600"
+        set: true
+    remediation: |
+      Run the below command.
+
+      chmod 644 $controllermanagerkubeconf
+    scored: true
+
+  - id: 1.4.18
+    text: "Ensure that the controller-manager.conf file ownership is set to root:root (Scored)"
+    audit: "stat -c %u $controllermanagerkubeconf"
+    tests:
+      test_items:
+      - flag: "root:root"
+        compare:
+          op: eq
+          value: "root:root"
+        set: true
+    remediation: |
+      Run the below command on the master node.
+
+      chown root:root $controllermanagerkubeconf
+    scored: true
+
+
+- id: 1.5
+  text: "Etcd"
+  checks:
+  - id: 1.5.1
+    text: "Ensure that the --cert-file and --key-file arguments are set as appropriate (Scored)"
+    audit: |
+      /usr/local/bin/master-exec etcd etcd grep ETCD_CERT_FILE=/etc/etcd/server.crt /proc/1/environ; \
+      /usr/local/bin/master-exec etcd etcd grep ETCD_KEY_FILE=/etc/etcd/server.key /proc/1/environ; \
+      grep ETCD_CERT_FILE=/etc/etcd/server.crt /etc/etcd/etcd.conf; \
+      grep ETCD_KEY_FILE=/etc/etcd/server.key /etc/etcd/etcd.conf
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "Binary file /proc/1/environ matches"
+        compare:
+          op: has
+          value: "Binary file /proc/1/environ matches"
+        set: true
+      - flag: "ETCD_CERT_FILE=/etc/etcd/server.crt"
+        compare:
+          op: has
+          value: "ETCD_CERT_FILE=/etc/etcd/server.crt"
+        set: true
+      - flag: "ETCD_KEY_FILE=/etc/etcd/server.key"
+        compare:
+          op: has
+          value: "ETCD_KEY_FILE=/etc/etcd/server.key"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: true
+
+  - id: 1.5.2
+    text: "Ensure that the --client-cert-auth argument is set to true (Scored)"
+    audit: |
+      /usr/local/bin/master-exec etcd etcd grep ETCD_CLIENT_CERT_AUTH=true /proc/1/environ; \
+      grep ETCD_CLIENT_CERT_AUTH /etc/etcd/etcd.conf
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "Binary file /proc/1/environ matches"
+        compare:
+          op: has
+          value: "Binary file /proc/1/environ matches"
+        set: true
+      - flag: "ETCD_CLIENT_CERT_AUTH=true"
+        compare:
+          op: has
+          value: "ETCD_CLIENT_CERT_AUTH=true"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: true
+
+  - id: 1.5.3
+    text: "Ensure that the --auto-tls argument is not set to true (Scored)"
+    audit: |
+      /usr/local/bin/master-exec etcd etcd grep ETCD_AUTO_TLS /proc/1/environ; \
+      grep ETCD_AUTO_TLS /etc/etcd/etcd.conf
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "ETCD_AUTO_TLS=false"
+        compare:
+          op: has
+          value: "ETCD_AUTO_TLS=false"
+        set: true
+      - flag: "#ETCD_AUTO_TLS"
+        compare:
+          op: has
+          value: "#ETCD_AUTO_TLS"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: true
+
+  - id: 1.5.4
+    text: "Ensure that the --peer-cert-file and --peer-key-file arguments are set as appropriate (Scored)"
+    audit: |
+      /usr/local/bin/master-exec etcd etcd grep ETCD_PEER_CERT_FILE=/etc/etcd/peer.crt /proc/1/environ; \
+      /usr/local/bin/master-exec etcd etcd grep ETCD_PEER_KEY_FILE=/etc/etcd/peer.key /proc/1/environ; \
+      grep ETCD_PEER_CERT_FILE /etc/etcd/etcd.conf; \
+      grep ETCD_PEER_KEY_FILE /etc/etcd/etcd.conf
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "Binary file /proc/1/environ matches"
+        compare:
+          op: has
+          value: "Binary file /proc/1/environ matches"
+        set: true
+      - flag: "ETCD_PEER_CERT_FILE=/etc/etcd/peer.crt"
+        compare:
+          op: has
+          value: "ETCD_PEER_CERT_FILE=/etc/etcd/peer.crt"
+        set: true
+      - flag: "ETCD_PEER_KEY_FILE=/etc/etcd/peer.key"
+        compare:
+          op: has
+          value: "ETCD_PEER_KEY_FILE=/etc/etcd/peer.key"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: true
+
+  - id: 1.5.5
+    text: "Ensure that the --peer-client-cert-auth argument is set to true (Scored)"
+    audit: |
+      /usr/local/bin/master-exec etcd etcd grep ETCD_PEER_CLIENT_CERT_AUTH=true /proc/1/environ; \
+      grep ETCD_PEER_CLIENT_CERT_AUTH /etc/etcd/etcd.conf
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "Binary file /proc/1/environ matches"
+        compare:
+          op: has
+          value: "Binary file /proc/1/environ matches"
+        set: true
+      - flag: "ETCD_PEER_CLIENT_CERT_AUTH=true"
+        compare:
+          op: has
+          value: "ETCD_PEER_CLIENT_CERT_AUTH=true"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: true
+
+  - id: 1.5.6
+    text: "Ensure that the --peer-auto-tls argument is not set to true (Scored)"
+    audit: |
+      /usr/local/bin/master-exec etcd etcd grep ETCD_PEER_AUTO_TLS /proc/1/environ; \
+      grep ETCD_PEER_AUTO_TLS /etc/etcd/etcd.conf
+    tests:
+      bin_op: and
+      test_items:
+      - flag: "Binary file /proc/1/environ matches"
+        compare:
+          op: has
+          value: "Binary file /proc/1/environ matches"
+        set: true
+      - flag: "#ETCD_PEER_AUTO_TLS=false"
+        compare:
+          op: has
+          value: "#ETCD_PEER_AUTO_TLS=false"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: true
+
+  - id: 1.5.7
+    text: "Ensure that the --wal-dir argument is set as appropriate Scored)"
+    type: "skip"
+    scored: true
+
+  - id: 1.5.8
+    text: "Ensure that the --max-wals argument is set to 0 (Scored)"
+    type: "skip"
+    scored: true
+
+  - id: 1.5.9
+    text: "Ensure that a unique Certificate Authority is used for etcd (Not Scored)"
+    audit: "openssl x509 -in /etc/origin/master/master.etcd-ca.crt -subject -issuer -noout"
+    tests:
+      bin_op: or
+      test_items:
+      - flag: "notest"
+        compare:
+          op: has
+          value: "notest"
+        set: true
+    remediation: |
+      Reset to the OpenShift default configuration.
+    scored: false
+
+
+- id: 1.6
+  text: "General Security Primitives"
+  checks:
+  - id: 1.6.1
+    text: "Ensure that the cluster-admin role is only used where required (Not Scored)"
+    type: "manual"
+    remediation: |
+      Review users, groups, serviceaccounts bound to cluster-admin:
+      oc get clusterrolebindings | grep cluster-admin
+
+      Review users and groups bound to cluster-admin and decide whether they require
+      such access. Consider creating least-privilege roles for users and service accounts
+    scored: false
+
+  - id: 1.6.2
+    text: "Create Pod Security Policies for your cluster (Not Scored)"
+    type: "manual"
+    remediation: |
+      Review Security Context Constraints:
+      oc get scc
+
+      Use OpenShift's Security Context Constraint feature, which has been contributed
+      to Kubernetes as Pod Security Policies. PSPs are still beta in Kubernetes 1.10.
+      OpenShift ships with two SCCs: restricted and privileged.
+
+      The two default SCCs will be created when the master is started. The restricted
+      SCC is granted to all authenticated users by default.
+
+       https://docs.openshift.com/container-platform/3.10/admin_guide/manage_scc.html"
+    scored: false
+
+  - id: 1.6.3
+    text: "Create administrative boundaries between resources using namespaces (Not Scored)"
+    type: "manual"
+    remediation: |
+      Review projects:
+      oc get projects
+    scored: false
+
+  - id: 1.6.4
+    text: "Create network segmentation using Network Policies (Not Scored)"
+    type: "manual"
+    remediation: |
+      Verify on masters the plugin being used:
+      grep networkPluginName /etc/origin/master/master-config.yaml
+
+      OpenShift provides multi-tenant networking isolation (using Open vSwich and
+      vXLAN), to segregate network traffic between containers belonging to different
+      tenants (users or applications) while running on a shared cluster. Red Hat also
+      works with 3rd-party SDN vendors to provide the same level of capabilities
+      integrated with OpenShift. OpenShift SDN is included a part of OpenShift
+      subscription.
+
+      OpenShift supports Kubernetes NetworkPolicy. Administrator must configure
+      NetworkPolicies if desired.
+
+      https://docs.openshift.com/container-platform/3.10/architecture/networking/sdn.html#architecture-additional-concepts-sdn
+
+      Ansible Inventory variable: os_sdn_network_plugin_name:
+      https://docs.openshift.com/container-platform/3.10/install/configuring_inventory_file.html
+    scored: false
+
+  - id: 1.6.5
+    text: "Ensure that the seccomp profile is set to docker/default in your pod definitions (Not Scored)"
+    type: "manual"
+    remediation: |
+      Verify SCCs that have been configured with seccomp:
+      oc get scc -ocustom-columns=NAME:.metadata.name,SECCOMP-PROFILES:.seccompProfiles
+
+      OpenShift does not enable seccomp by default. To configure seccomp profiles that
+      are applied to pods run by the SCC, follow the instructions in the
+      documentation:
+
+      https://docs.openshift.com/container-platform/3.9/admin_guide/seccomp.html#admin-guide-seccomp
+    scored: false
+
+  - id: 1.6.6
+    text: "Apply Security Context to Your Pods and Containers (Not Scored)"
+    type: "manual"
+    remediation: |
+      Review SCCs:
+      oc describe scc
+
+      Use OpenShift's Security Context Constraint feature, which has been contributed
+      to Kubernetes as Pod Security Policies. PSPs are still beta in Kubernetes 1.10.
+
+      OpenShift ships with two SCCs: restricted and privileged. The two default SCCs
+      will be created when the master is started. The restricted SCC is granted to
+      all authenticated users by default.
+
+      All pods are run under the restricted SCC by default. Running a pod under any
+      other SCC requires an account with cluster admin capabilities to grant access
+      for the service account.
+
+      SecurityContextConstraints limit what securityContext is applied to pods and
+      containers.
+
+      https://docs.openshift.com/container-platform/3.10/admin_guide/manage_scc.html
+    scored: false
+
+  - id: 1.6.7
+    text: "Configure Image Provenance using ImagePolicyWebhook admission controller (Not Scored)"
+    type: "manual"
+    remediation: |
+      Review imagePolicyConfig in /etc/origin/master/master-config.yaml.
+    scored: false
+
+  - id: 1.6.8
+    text: "Configure Network policies as appropriate (Not Scored)"
+    type: "manual"
+    remediation: |
+      If ovs-networkplugin is used, review network policies:
+      oc get networkpolicies
+
+      OpenShift supports Kubernetes NetworkPolicy via ovs-networkpolicy plugin.
+      If choosing ovs-multitenant plugin, each namespace is isolated in its own
+      netnamespace by default.
+    scored: false
+
+  - id: 1.6.9
+    text: "Place compensating controls in the form of PSP and RBAC for privileged containers usage (Not Scored)"
+    type: "manual"
+    remediation: |
+      1) Determine all sccs allowing privileged containers:
+         oc get scc -ocustom-columns=NAME:.metadata.name,ALLOWS_PRIVILEGED:.allowPrivilegedContainer
+      2) Review users and groups assigned to sccs allowing priviliged containers:
+         oc describe sccs <from (1)>
+
+      Use OpenShift's Security Context Constraint feature, which has been contributed
+      to Kubernetes as Pod Security Policies. PSPs are still beta in Kubernetes 1.10.
+
+      OpenShift ships with two SCCs: restricted and privileged. The two default SCCs
+      will be created when the master is started. The restricted SCC is granted to all
+      authenticated users by default.
+
+      Similar scenarios are documented in the SCC
+      documentation, which outlines granting SCC access to specific serviceaccounts.
+      Administrators may create least-restrictive SCCs based on individual container
+      needs.
+
+      For example, if a container only requires running as the root user, the anyuid
+      SCC can be used, which will not expose additional access granted by running
+      privileged containers.
+
+      https://docs.openshift.com/container-platform/3.10/admin_guide/manage_scc.html
+    scored: false
+
