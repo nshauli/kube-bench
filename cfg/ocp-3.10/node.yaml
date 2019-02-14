@@ -208,3 +208,171 @@ groups:
       Edit the Openshift node config file $nodekubeletconf and set RotateKubeletServerCertificate to true.
     scored: true
 
+
+- id: 2.2
+  text: "Configuration Files"
+  checks:
+  - id: 2.2.1
+    text: "Ensure that the kubelet.conf file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a  $nodekubeletkubeconf"
+    tests:
+      bin_op: or
+      test_items:
+        - flag: "644"
+          compare:
+            op: eq
+            value: "644"
+          set: true
+        - flag: "640"
+          compare:
+            op: eq
+            value: "640"
+          set: true
+        - flag: "600"
+          compare:
+            op: eq
+            value: "600"
+          set: true
+    remediation: |
+      Run the below command on each worker node.
+      chmod 644 $nodekubeletkubeconf
+    scored: true
+
+  - id: 2.2.2
+    text: "Ensure that the kubelet.conf file ownership is set to root:root (Scored)"
+    audit: "stat -c %U:%G $nodekubeletkubeconf"
+    tests:
+      test_items:
+        - flag: "root:root"
+          compare:
+            op: eq
+            value: root:root
+          set: true
+      remediation: |
+        Run the below command on each worker node.
+        chown root:root $nodekubeletkubeconf
+      scored: true
+
+  - id: 2.2.3
+    text: "Ensure that the kubelet service file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $nodekubeletsvcconf"
+    tests:
+      bin_op: or
+      test_items:
+        - flag: "644"
+          compare:
+            op: eq
+            value: "644"
+          set: true
+        - flag: "640"
+          compare:
+            op: eq
+            value: "640"
+          set: true
+        - flag: "600"
+          compare:
+            op: eq
+            value: "600"
+          set: true
+    remediation: |
+      Run the below command on each worker node.
+      chmod 644 $nodekubeletsvcconf
+    scored: true
+
+  - id: 2.2.4
+    text: "Ensure that the kubelet service file ownership is set to root:root (Scored)"
+    audit: "stat -c %U:%G $nodekubeletsvcconf"
+    tests:
+      test_items:
+        - flag: "root:root"
+          compare:
+            op: eq
+            value: root:root
+          set: true
+      remediation: |
+        Run the below command on each worker node.
+        chown root:root $nodekubeletsvcconf
+      scored: true
+
+  - id: 2.2.5
+    text: "Ensure that the proxy kubeconfig file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a $nodeproxykubeconf"
+    tests:
+      bin_op: or
+      test_items:
+        - flag: "644"
+          compare:
+            op: eq
+            value: "644"
+          set: true
+        - flag: "640"
+          compare:
+            op: eq
+            value: "640"
+          set: true
+        - flag: "600"
+          compare:
+            op: eq
+            value: "600"
+          set: true
+    remediation: |
+      Run the below command on each worker node.
+      chmod 644 $nodeproxykubeconf
+    scored: true
+
+  - id: 2.2.6
+    text: "Ensure that the proxy kubeconfig file ownership is set to root:root (Scored)"
+    audit: "stat -c %U:%G $nodeproxykubeconf"
+    tests:
+      test_items:
+        - flag: "root:root"
+          compare:
+            op: eq
+            value: root:root
+          set: true
+      remediation: |
+        Run the below command on each worker node.
+        chown root:root $nodeproxykubeconf
+      scored: true
+
+  - id: 2.2.7
+    text: "Ensure that the certificate authorities file permissions are set to 644 or more restrictive (Scored)"
+    audit: "stat -c %a /etc/origin/node/client-ca.crt"
+    tests:
+      bin_op: or
+      test_items:
+        - flag: "644"
+          compare:
+            op: eq
+            value: "644"
+          set: true
+        - flag: "640"
+          compare:
+            op: eq
+            value: "640"
+          set: true
+        - flag: "600"
+          compare:
+            op: eq
+            value: "600"
+          set: true
+    remediation: |
+      Run the below command on each worker node.
+      chmod 644 /etc/origin/node/client-ca.crt
+    scored: true
+
+  - id: 2.2.8
+    text: "Ensure that the client certificate authorities file ownership is set to root:root (Scored)"
+    audit: "stat -c %U:%G /etc/origin/node/client-ca.crt"
+    tests:
+      test_items:
+        - flag: "root:root"
+          compare:
+            op: eq
+            value: root:root
+          set: true
+      remediation: |
+        Run the below command on each worker node.
+        chown root:root /etc/origin/node/client-ca.crt
+      scored: true
+
